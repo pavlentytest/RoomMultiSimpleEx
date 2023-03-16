@@ -2,17 +2,18 @@ package study.android.room2
 
 
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.*
 import android.widget.AdapterView.OnItemSelectedListener
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.room.Room
+import kotlinx.coroutines.Dispatchers.Main
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-
-
+import kotlinx.coroutines.withContext
 
 
 class MainActivity : AppCompatActivity() {
@@ -40,15 +41,32 @@ class MainActivity : AppCompatActivity() {
         spinner = findViewById(R.id.spinner)
         listCaption = findViewById(R.id.listCaption)
         recyclerView = findViewById(R.id.recyclerView)
+        recyclerView.layoutManager = LinearLayoutManager(this)
 
         rbStudent.setOnClickListener{
             listCaption.text = "Student's subjects"
-            // так же должен меняться выпадающий список
+            GlobalScope.launch {
+                val s = db.schoolDao.getStudents()
+                val st = MutableList(0){""}
+                for (i in s)
+                    st.add(i.studentName)
+                withContext(Main){
+                    spinner.adapter = ArrayAdapter(applicationContext, android.R.layout.simple_spinner_item, st )
+                }
+            }
         }
 
         rbSubject.setOnClickListener{
             listCaption.text = "Students study"
-            // также должен меняться выпадающий список
+            GlobalScope.launch {
+                val s = db.schoolDao.getSubjects()
+                val st = MutableList(0){""}
+                for (i in s)
+                    st.add(i.subjectName)
+                withContext(Main){
+                    spinner.adapter = ArrayAdapter(applicationContext, android.R.layout.simple_spinner_item, st )
+                }
+            }
         }
 
         val items = arrayOf("Здесь", "должен", "располагаться", "список", "учеников", "или предметов")
@@ -60,13 +78,41 @@ class MainActivity : AppCompatActivity() {
 
         spinner.adapter = adapter
 
+
         spinner.onItemSelectedListener = object : OnItemSelectedListener {
             override fun onItemSelected(
                 parent: AdapterView<*>, view: View?,
                 position: Int, id: Long
             ) {
-                Toast.makeText(getApplicationContext(), "При выборе должен меняться список на предметы выбранного ученика или учеников, изучающих выбранный предмет", Toast.LENGTH_LONG).show()
+
+                GlobalScope.launch {
+                    if (rbStudent.isChecked) {
+                        val s = db.schoolDao.getSubjectsOfStudent(
+                            spinner.adapter.getItem(position).toString()
+                        )
+                        val st = MutableList(0) { "" }
+                        for (i in s[0].subjects)
+                            st.add(i.subjectName)
+                        withContext(Main) {
+                            recyclerView.adapter = MyAdapter(st)
+                        }
+                    }
+                    if(rbSubject.isChecked) {
+                        val s = db.schoolDao.getStudentsOfSubject(
+                            spinner.adapter.getItem(position).toString()
+                        )
+                        val st = MutableList(0) { "" }
+                        for (i in s[0].students)
+                            st.add(i.studentName)
+                        withContext(Main) {
+                            recyclerView.adapter = MyAdapter(st)
+                        }
+                    }
+
+                }
             }
+
+
 
             override fun onNothingSelected(parent: AdapterView<*>?) {
                 // TODO Auto-generated method stub
